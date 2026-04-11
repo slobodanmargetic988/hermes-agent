@@ -832,6 +832,26 @@ def _truncate_content(content: str, filename: str, max_chars: int = CONTEXT_FILE
     return head + marker + tail
 
 
+_DEFAULT_SOUL_HEADINGS = {
+    "# Hermes Agent Persona",
+    "# Agent Persona",
+}
+
+
+def _sanitize_soul_content(content: str) -> str:
+    """Strip non-instructional SOUL.md template boilerplate."""
+    # The default SOUL.md ships as a title plus an HTML comment block.
+    # Keep user-authored persona text, but treat the untouched template as empty.
+    without_comments = re.sub(r"<!--[\s\S]*?-->", "", content)
+    filtered_lines = []
+    for line in without_comments.splitlines():
+        stripped = line.strip()
+        if stripped in _DEFAULT_SOUL_HEADINGS:
+            continue
+        filtered_lines.append(line)
+    return "\n".join(filtered_lines).strip()
+
+
 def load_soul_md() -> Optional[str]:
     """Load SOUL.md from HERMES_HOME and return its content, or None.
 
@@ -849,7 +869,8 @@ def load_soul_md() -> Optional[str]:
     if not soul_path.exists():
         return None
     try:
-        content = soul_path.read_text(encoding="utf-8").strip()
+        raw_content = soul_path.read_text(encoding="utf-8")
+        content = _sanitize_soul_content(raw_content)
         if not content:
             return None
         content = _scan_context_content(content, "SOUL.md")
